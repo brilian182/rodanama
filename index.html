@@ -1,196 +1,191 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Wheel of Names</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wheel of Names</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
 
-<style>
-body {
-    font-family: Arial, Helvetica, sans-serif;
-    background: #f4f6fb;
-    text-align: center;
-    padding: 20px;
-}
+    h1 {
+      margin-bottom: 10px;
+    }
 
-h2 {
-    margin-bottom: 10px;
-}
+    textarea {
+      width: 300px;
+      height: 120px;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      margin-bottom: 10px;
+      resize: none;
+    }
 
-textarea {
-    width: 320px;
-    height: 120px;
-    padding: 10px;
-    font-size: 14px;
-}
+    button {
+      background: #22c55e;
+      color: #022c22;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 999px;
+      font-size: 14px;
+      cursor: pointer;
+      margin: 5px;
+    }
 
-button {
-    margin-top: 10px;
-    padding: 12px 28px;
-    font-size: 16px;
-    border: none;
-    border-radius: 8px;
-    background: #4f46e5;
-    color: #fff;
-    cursor: pointer;
-}
+    button:hover {
+      opacity: 0.9;
+    }
 
-button:hover {
-    background: #4338ca;
-}
+    canvas {
+      margin-top: 20px;
+      background: #020617;
+      border-radius: 50%;
+    }
 
-canvas {
-    margin-top: 20px;
-    max-width: 100%;
-}
+    .pointer {
+      position: absolute;
+      margin-top: 8px;
+      width: 0;
+      height: 0;
+      border-left: 10px solid transparent;
+      border-right: 10px solid transparent;
+      border-bottom: 20px solid #22c55e;
+    }
 
-#winner {
-    margin-top: 20px;
-    font-size: 22px;
-    font-weight: bold;
-    color: #16a34a;
-}
-</style>
+    .wheel-wrapper {
+      position: relative;
+      width: 300px;
+      height: 300px;
+    }
+
+    .result {
+      margin-top: 15px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #22c55e;
+    }
+  </style>
 </head>
-
 <body>
+  <h1>🎡 Wheel of Names</h1>
+  <p>Masukkan nama (satu per baris)</p>
 
-<h2>🎡 Wheel of Names</h2>
+  <textarea id="namesInput" placeholder="Andi\nBudi\nCitra"></textarea><br />
+  <button onclick="updateWheel()">Update Wheel</button>
+  <button onclick="spinWheel()">Spin</button>
 
-<textarea id="names" placeholder="Masukkan nama (1 baris = 1 nama)"></textarea><br>
-<button onclick="spin()">SPIN 🎯</button>
+  <div class="wheel-wrapper">
+    <div class="pointer"></div>
+    <canvas id="wheel" width="300" height="300"></canvas>
+  </div>
+  <div class="result" id="result"></div>
 
-<br>
-<canvas id="wheel" width="400" height="400"></canvas>
+  <!-- Sound Effects -->
+  <audio id="spinSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_1b6c18c59c.mp3?filename=wheel-spin-102979.mp3"></audio>
+  <audio id="winSound" src="https://cdn.pixabay.com/download/audio/2022/03/10/audio_45c2a63e0f.mp3?filename=success-fanfare-trumpets-6185.mp3"></audio>
 
-<div id="winner"></div>
+  <script>
+    const canvas = document.getElementById('wheel');
+    const ctx = canvas.getContext('2d');
+    let names = [];
+    let angle = 0;
+    let spinning = false;
 
-<script>
-/* =======================
-   AUDIO (BUILT-IN)
-======================= */
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function updateWheel() {
+      const input = document.getElementById('namesInput').value;
+      names = input.split('\n').map(n => n.trim()).filter(n => n);
+      drawWheel();
+      document.getElementById('result').textContent = '';
+    }
 
-function playClickSound() {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = "triangle";
-    osc.frequency.value = 400;
-    gain.gain.value = 0.08;
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.03);
-}
+    function drawWheel() {
+      const radius = canvas.width / 2;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-function playWinSound() {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(600, audioCtx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.6);
-    gain.gain.value = 0.08;
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.7);
-}
+      if (names.length === 0) return;
 
-/* =======================
-   WHEEL LOGIC
-======================= */
-const canvas = document.getElementById("wheel");
-const ctx = canvas.getContext("2d");
-const radius = canvas.width / 2;
+      const slice = (2 * Math.PI) / names.length;
 
-let names = [];
-let angle = 0;
-let spinning = false;
-
-function drawWheel() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const slice = (2 * Math.PI) / names.length;
-
-    names.forEach((name, i) => {
+      names.forEach((name, i) => {
         ctx.beginPath();
         ctx.moveTo(radius, radius);
-        ctx.fillStyle = i % 2 === 0 ? "#93c5fd" : "#fde68a";
-        ctx.arc(radius, radius, radius, slice * i, slice * (i + 1));
+        ctx.arc(radius, radius, radius, angle + i * slice, angle + (i + 1) * slice);
+        ctx.fillStyle = `hsl(${i * 360 / names.length}, 70%, 50%)`;
         ctx.fill();
 
         ctx.save();
         ctx.translate(radius, radius);
-        ctx.rotate(slice * i + slice / 2);
-        ctx.textAlign = "right";
-        ctx.fillStyle = "#111";
-        ctx.font = "16px Arial";
+        ctx.rotate(angle + (i + 0.5) * slice);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#fff';
+        ctx.font = '14px Arial';
         ctx.fillText(name, radius - 10, 5);
         ctx.restore();
-    });
+      });
 
-    // Pointer
-    ctx.fillStyle = "red";
-    ctx.beginPath();
-    ctx.moveTo(radius - 12, 5);
-    ctx.lineTo(radius + 12, 5);
-    ctx.lineTo(radius, 25);
-    ctx.fill();
-}
-
-function spin() {
-    if (spinning) return;
-
-    names = document.getElementById("names").value
-        .split("\n")
-        .map(n => n.trim())
-        .filter(n => n !== "");
-
-    if (names.length < 2) {
-        alert("Masukkan minimal 2 nama!");
-        return;
+      // pointer
+      ctx.fillStyle = '#22c55e';
+      ctx.beginPath();
+      ctx.moveTo(radius - 5, 5);
+      ctx.lineTo(radius + 5, 5);
+      ctx.lineTo(radius, 20);
+      ctx.fill();
     }
 
-    document.getElementById("winner").innerText = "";
-    spinning = true;
+    function spinWheel() {
+      if (spinning || names.length === 0) return;
+      spinning = true;
 
-    let speed = Math.random() * 0.5 + 0.6;
-    let deceleration = 0.002;
+      const spinSound = document.getElementById('spinSound');
+      spinSound.currentTime = 0;
+      spinSound.loop = true;
+      spinSound.volume = 1;
+      spinSound.play();
 
-    function animate() {
-        if (speed > 0) {
-            angle += speed;
-            speed -= deceleration;
+      let velocity = Math.random() * 0.35 + 0.45; // kecepatan awal
+      const friction = 0.985; // gesekan (semakin besar makin lama berhenti)
 
-            ctx.save();
-            ctx.translate(radius, radius);
-            ctx.rotate(angle);
-            ctx.translate(-radius, -radius);
-            drawWheel();
-            ctx.restore();
+      function rotate() {
+        angle += velocity;
+        velocity *= friction;
 
-            playClickSound();
-            requestAnimationFrame(animate);
+        // volume suara ikut pelan
+        spinSound.volume = Math.max(0, velocity * 2);
+
+        drawWheel();
+
+        if (velocity > 0.002) {
+          requestAnimationFrame(rotate);
         } else {
-            spinning = false;
-            const slice = (2 * Math.PI) / names.length;
-            const index =
-                Math.floor(names.length - (angle % (2 * Math.PI)) / slice) %
-                names.length;
-
-            document.getElementById("winner").innerText =
-                "🏆 Pemenang: " + names[index];
-
-            playWinSound();
+          spinning = false;
+          spinSound.pause();
+          spinSound.currentTime = 0;
+          showResult();
         }
+      }
+      rotate();
     }
 
-    animate();
-}
+    function showResult() {
+      const slice = (2 * Math.PI) / names.length;
+      const index = Math.floor(((2 * Math.PI - angle + slice / 2) % (2 * Math.PI)) / slice);
+      document.getElementById('result').textContent = `🎉 Terpilih: ${names[index]}`;
 
-// Initial draw
-drawWheel();
-</script>
+      const winSound = document.getElementById('winSound');
+      winSound.currentTime = 0;
+      winSound.play();
+    }`;
+    }
 
+    drawWheel();
+  </script>
 </body>
 </html>
