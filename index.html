@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wheel of Names</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    textarea {
+      width: 300px;
+      height: 120px;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      margin-bottom: 10px;
+      resize: none;
+    }
+
+    button {
+      background: #22c55e;
+      color: #022c22;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 999px;
+      font-size: 14px;
+      cursor: pointer;
+      margin: 5px;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    canvas {
+      margin-top: 20px;
+      background: #020617;
+      border-radius: 50%;
+    }
+
+    .result {
+      margin-top: 15px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #22c55e;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎡 Wheel of Names</h1>
+  <p>Masukkan nama (satu per baris)</p>
+
+  <textarea id="namesInput" placeholder="Andi\nBudi\nCitra"></textarea><br />
+  <button onclick="updateWheel()">Update Wheel</button>
+  <button onclick="spinWheel()">Spin</button>
+
+  <canvas id="wheel" width="300" height="300"></canvas>
+  <div class="result" id="result"></div>
+
+  <script>
+    const canvas = document.getElementById('wheel');
+    const ctx = canvas.getContext('2d');
+    let names = [];
+    let angle = 0;
+    let spinning = false;
+
+    function updateWheel() {
+      const input = document.getElementById('namesInput').value;
+      names = input.split('\n').map(n => n.trim()).filter(n => n);
+      drawWheel();
+      document.getElementById('result').textContent = '';
+    }
+
+    function drawWheel() {
+      const radius = canvas.width / 2;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (names.length === 0) return;
+
+      const slice = (2 * Math.PI) / names.length;
+
+      names.forEach((name, i) => {
+        ctx.beginPath();
+        ctx.moveTo(radius, radius);
+        ctx.arc(radius, radius, radius, angle + i * slice, angle + (i + 1) * slice);
+        ctx.fillStyle = `hsl(${i * 360 / names.length}, 70%, 50%)`;
+        ctx.fill();
+
+        ctx.save();
+        ctx.translate(radius, radius);
+        ctx.rotate(angle + (i + 0.5) * slice);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#fff';
+        ctx.font = '14px Arial';
+        ctx.fillText(name, radius - 10, 5);
+        ctx.restore();
+      });
+
+      // pointer
+      ctx.fillStyle = '#22c55e';
+      ctx.beginPath();
+      ctx.moveTo(radius - 5, 5);
+      ctx.lineTo(radius + 5, 5);
+      ctx.lineTo(radius, 20);
+      ctx.fill();
+    }
+
+    function spinWheel() {
+      if (spinning || names.length === 0) return;
+      spinning = true;
+      let spinAngle = Math.random() * 10 + 10;
+      let spinTime = 0;
+
+      function rotate() {
+        spinTime += 0.1;
+        angle += spinAngle * 0.01;
+        spinAngle *= 0.98;
+        drawWheel();
+
+        if (spinAngle > 0.01) {
+          requestAnimationFrame(rotate);
+        } else {
+          spinning = false;
+          showResult();
+        }
+      }
+      rotate();
+    }
+
+    function showResult() {
+      const slice = (2 * Math.PI) / names.length;
+      const index = Math.floor(((2 * Math.PI - angle + slice / 2) % (2 * Math.PI)) / slice);
+      document.getElementById('result').textContent = `🎉 Terpilih: ${names[index]}`;
+    }
+
+    drawWheel();
+  </script>
+</body>
+</html>
